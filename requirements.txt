@@ -1,0 +1,5 @@
+streamlit
+reportlab
+google-generativeai
+requests
+twilio
