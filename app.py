@@ -63,10 +63,10 @@ if not st.session_state.logged_in:
     st.title("🎓 AI Resume Builder & Smart Job Matcher")
     st.caption("Empowering job seekers with automated ATS optimization and real-time job compatibility alerts.")
     
-    tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
+    tab1, tab2 = st.tabs(["🔑 Login", "📝 Register (Create Account)"])
 
     with tab1:
-        st.subheader("Account Login")
+        st.subheader("Candidate Login")
         l_user = st.text_input("Username", key="l_user", placeholder="Enter your registered username")
         l_pass = st.text_input("Password", type="password", key="l_pass", placeholder="Enter your password")
         if st.button("Log In", type="primary"):
@@ -96,7 +96,7 @@ if not st.session_state.logged_in:
                 if len(raw_phone.strip()) == 10 and raw_phone.strip().isdigit():
                     full_phone = f"+91{raw_phone.strip()}"
                     if register_user(r_user, r_pass, full_phone):
-                        st.success("Account registered successfully! Please switch to the Sign In tab.")
+                        st.success("Account registered successfully! Please switch to the Login tab.")
                     else:
                         st.error("Username already taken. Please select an alternate username.")
                 else:
@@ -287,7 +287,6 @@ Return output STRICTLY in JSON format with exact keys:
                 except Exception:
                     pass
 
-            # Fail-safe Fallback
             if not summary_res:
                 summary_res = f"Detail-oriented {target_role if target_role else 'Professional'} equipped with solid technical foundations in {skills_input if skills_input else 'Core Computing Technologies'} and analytical problem-solving abilities. Capable of translating technical requirements into actionable, high-quality deliverables."
                 exp_res = f"• Developed and executed technical assignments utilizing {skills_input if skills_input else 'modern toolkits'}.\n• Maintained structured workflows and adhered to industry-standard documentation practices."
