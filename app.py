@@ -2,15 +2,15 @@ import streamlit as st
 import sqlite3
 import hashlib
 import json
+import io
+import urllib.parse
+import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-import io
 import google.generativeai as genai
 from twilio.rest import Client
-import urllib.parse
-import requests
 
 # ----------------- DATABASE SETUP -----------------
 def init_db():
@@ -109,13 +109,14 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.phone = ""
+    st.session_state.resume_ready = False
     st.rerun()
 
 st.sidebar.markdown("---")
 gemini_key = st.sidebar.text_input("Gemini API Key", type="password", help="Enter Google AI Studio Key")
 
 st.sidebar.subheader("📲 WhatsApp Alert Settings (Free)")
-whatsapp_api_key = st.sidebar.text_input("CallMeBot WhatsApp API Key", type="password", help="Enter key received from CallMeBot on WhatsApp")
+whatsapp_api_key = st.sidebar.text_input("CallMeBot WhatsApp API Key", type="password", help="Enter key received from CallMeBot")
 
 st.sidebar.info("Twilio SMS Dispatcher (Optional)")
 tw_sid = st.sidebar.text_input("Twilio Account SID", type="password")
@@ -190,7 +191,7 @@ def call_gemini(api_key, prompt):
     selected_model = None
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        for candidate in ["models/gemini-1.5-flash", "models/gemini-pro", "models/gemini-2.0-flash"]:
+        for candidate in ["models/gemini-1.5-flash-latest", "models/gemini-1.5-flash", "models/gemini-2.0-flash", "models/gemini-pro"]:
             if candidate in available_models:
                 selected_model = candidate
                 break
@@ -206,41 +207,37 @@ def call_gemini(api_key, prompt):
 # --- TAB 1: RESUME BUILDER ---
 if menu == "1. Comprehensive AI Resume Builder":
     st.title("📄 Complete AI Resume Builder")
-    st.caption("Saari details bharein taaki ATS-compliant professional resume tayar ho sake.")
+    st.caption("Apni details enter karein taaki personalized ATS resume ban sake.")
 
     with st.expander("👤 1. Personal & Contact Details", expanded=True):
         p_col1, p_col2 = st.columns(2)
         with p_col1:
-            full_name = st.text_input("Full Name", value="Solukumar Singh")
-            email = st.text_input("Email Address", value="solusingh2006@gmail.com")
-            target_role = st.text_input("Target Job Profile", value="Data Analyst")
+            full_name = st.text_input("Full Name", value=st.session_state.username)
+            email = st.text_input("Email Address", placeholder="e.g. yourname@gmail.com")
+            target_role = st.text_input("Target Job Profile", placeholder="e.g. Data Analyst")
         with p_col2:
-            phone_num = st.text_input("Contact Number (+91 format)", value=st.session_state.phone)
-            location = st.text_input("Current City / State", value="Pune, Maharashtra")
-            linkedin = st.text_input("LinkedIn / GitHub URL", value="linkedin.com/in/solukumarsingh")
+            phone_num = st.text_input("Contact Number (+91 format)", value=st.session_state.phone, disabled=True)
+            location = st.text_input("Current City / State", placeholder="e.g. Pune, Maharashtra")
+            linkedin = st.text_input("LinkedIn / GitHub URL", placeholder="e.g. linkedin.com/in/username")
 
     with st.expander("🎓 2. Education Details", expanded=True):
         e_col1, e_col2 = st.columns(2)
         with e_col1:
-            degree = st.text_input("Degree / Course", value="Bachelor of Computer Applications (BCA)")
-            college = st.text_input("College / Institute Name", value="Savitribai Phule Pune University")
+            degree = st.text_input("Degree / Course", placeholder="e.g. Bachelor of Computer Applications (BCA)")
+            college = st.text_input("College / Institute Name", placeholder="e.g. SPPU Pune")
         with e_col2:
-            grad_year = st.text_input("Passing Year / Expected", value="2026")
-            score = st.text_input("CGPA / Percentage", value="8.4 CGPA")
+            grad_year = st.text_input("Passing Year / Expected", placeholder="2026")
+            score = st.text_input("CGPA / Percentage", placeholder="e.g. 8.4 CGPA")
 
     with st.expander("💻 3. Skills & Technologies", expanded=True):
-        skills_input = st.text_area("Skills (Languages, Databases, Frameworks, Tools)", 
-                                    value="Python, SQL (MySQL), Tableau, Power BI, Excel, Pandas, Git, C++")
+        skills_input = st.text_area("Skills (Languages, Databases, Frameworks, Tools)", placeholder="e.g. Python, SQL, Tableau, Power BI, Excel")
 
     with st.expander("💼 4. Experience & Projects", expanded=True):
-        experience_raw = st.text_area("Internship / Work Experience (agar hai, nahi toh 'Fresher')", 
-                                      value="Data Analytics Intern: Cleaned operational datasets, wrote optimized SQL queries, and generated monthly analytical insights.")
-        projects_raw = st.text_area("Key Projects (Title and raw description)", 
-                                   value="Project 1: Interactive Factory Downtime Dashboard in Tableau.\nProject 2: AI-Powered Resume Builder & Matcher using Python and Streamlit.")
+        experience_raw = st.text_area("Internship / Work Experience (agar fresher ho toh 'Fresher' likhein)", placeholder="Apni internship ya practical work details likhein...")
+        projects_raw = st.text_area("Key Projects (Title and raw description)", placeholder="Project 1: ...\nProject 2: ...")
 
     with st.expander("🏆 5. Certifications & Achievements", expanded=False):
-        certifications = st.text_area("Certifications (Ek line me ek)", 
-                                     value="Wadhwani Foundation IgniteX 1.0 Employability Skills\nData Visualization with Tableau - Coursera")
+        certifications = st.text_area("Certifications (Ek line me ek)", placeholder="e.g. Data Analytics Certificate - Coursera")
 
     resume_payload = {
         "full_name": full_name,
@@ -285,10 +282,11 @@ Return output STRICTLY in JSON format with exact keys:
                 except Exception:
                     pass
 
+            # Fail-safe Fallback taaki bina key ke bhi demo chale
             if not summary_res:
-                summary_res = f"Detail-oriented {target_role} graduate with strong technical foundations in {skills_input.split(',')[0]} and analytical problem-solving. Proven capability in translating complex data into strategic business insights through dashboards and automated workflows."
-                exp_res = f"• Analyzed business datasets and designed scalable reporting pipelines using {skills_input.split(',')[0]}.\n• Collaborated on operational reporting, streamlining query response times and data accuracy."
-                proj_res = f"• Built end-to-end interactive visual analytics dashboards showcasing downtime KPIs in Tableau.\n• Developed and deployed AI Resume Matching application using Streamlit and LLM prompt engineering."
+                summary_res = f"Detail-oriented {target_role if target_role else 'Professional'} with strong technical foundations in {skills_input if skills_input else 'Core Computing'} and problem-solving abilities. Capable of translating technical requirements into efficient deliverables."
+                exp_res = f"• Executed practical project tasks utilizing {skills_input if skills_input else 'technical tools'}.\n• Maintained code and project documentation ensuring standard operational quality."
+                proj_res = f"• Developed end-to-end technical projects demonstrating problem-solving ability.\n• Successfully delivered modules with documented outcomes."
 
             st.session_state.ai_summary = summary_res
             st.session_state.ai_exp = exp_res
@@ -333,31 +331,31 @@ elif menu == "2. Job Matcher & Alerts":
     st.info(f"Connected Mobile Number for Alerts: **{st.session_state.phone}** (India)")
 
     job_desc = st.text_area("Paste Target Job Description (JD):", height=150, 
-                            value="Looking for an Associate Data Analyst proficient in SQL, Python, and Tableau/Power BI. Must possess good analytical skills, communication, and database querying capabilities.")
-    user_skills_to_match = st.text_input("Candidate Skills for ATS Match", value="Python, SQL, Tableau, Power BI, Excel, MySQL, Git")
+                            placeholder="Yahan job posting ka description paste karein...")
+    user_skills_to_match = st.text_input("Candidate Skills for ATS Match", placeholder="e.g. Python, SQL, Tableau, Power BI, Excel")
 
     if st.button("🚀 Analyze Match & Dispatch Alert", type="primary"):
         with st.spinner("Analyzing candidate profile against JD..."):
-            score = 86
-            matched = ["Python", "SQL", "Tableau", "Power BI", "Excel"]
-            missing = ["Cloud Computing (AWS/GCP)", "Data Warehousing"]
+            score = 85
+            matched = ["Relevant Skills Identified"]
+            missing = ["Advanced Domain Tooling"]
 
-            if gemini_key:
+            if gemini_key and job_desc and user_skills_to_match:
                 try:
-                    match_prompt = f"""Compare these candidate skills with JD.
+                    match_prompt = f"""Compare candidate skills with JD.
 Skills: {user_skills_to_match}
 JD: {job_desc}
 
 Return strictly JSON:
 {{
-  "score": 88,
-  "matched": ["SQL", "Python"],
-  "missing": ["AWS"]
+  "score": 85,
+  "matched": ["skill1", "skill2"],
+  "missing": ["skill3"]
 }}"""
                     raw_res = call_gemini(gemini_key, match_prompt)
                     clean_res = raw_res.replace("```json", "").replace("```", "").strip()
                     parsed_match = json.loads(clean_res)
-                    score = parsed_match.get("score", 86)
+                    score = parsed_match.get("score", 85)
                     matched = parsed_match.get("matched", matched)
                     missing = parsed_match.get("missing", missing)
                 except Exception:
@@ -372,7 +370,7 @@ Return strictly JSON:
             with col_m2:
                 st.warning(f"Skill Gaps: {', '.join(missing)}")
 
-            sms_alert_text = f"Job Match Alert: Your profile scored {score}% for the Data Analyst opening! Key matching skills: {', '.join(matched[:3])}."
+            sms_alert_text = f"Job Match Alert for {st.session_state.username}: Profile scored {score}% for the opening! Matches: {', '.join(matched[:3])}."
 
             # WhatsApp Notification Dispatch (CallMeBot)
             clean_phone = st.session_state.phone.replace("+", "").strip()
@@ -388,7 +386,6 @@ Return strictly JSON:
                 except Exception as ex:
                     st.warning(f"Gateway connection error: {ex}")
 
-            # Optional Twilio live attempt
             sent_twilio = False
             if tw_sid and tw_token and tw_phone and st.session_state.phone:
                 try:
@@ -407,5 +404,3 @@ Return strictly JSON:
             else:
                 st.info("⚡ Real-Time Notification Log (Telecom Gateway Preview):")
                 st.code(f"Destination Number: {st.session_state.phone}\nCarrier Format: E.164 (India +91)\nPayload: {sms_alert_text}", language="markdown")
-                if not whatsapp_api_key:
-                    st.caption("Sidebar me CallMeBot WhatsApp API key daalte hi WhatsApp par live message aayega.")
