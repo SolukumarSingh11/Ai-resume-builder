@@ -50,62 +50,66 @@ def login_user(username, password):
 
 init_db()
 
-# ----------------- PAGE CONFIG -----------------
-st.set_page_config(page_title="AI Resume Builder & Job Matcher", layout="wide")
+# ----------------- PAGE CONFIGURATION -----------------
+st.set_page_config(page_title="AI Resume Builder & Job Matcher", page_icon="📄", layout="wide")
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.phone = ""
 
-# ----------------- AUTHENTICATION PAGE -----------------
+# ----------------- AUTHENTICATION PORTAL -----------------
 if not st.session_state.logged_in:
-    st.title("🎓 AI Resume Builder & Job Matcher")
-    tab1, tab2 = st.tabs(["Login", "Sign Up"])
+    st.title("🎓 AI Resume Builder & Smart Job Matcher")
+    st.caption("Empowering job seekers with automated ATS optimization and real-time job compatibility alerts.")
+    
+    tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
 
     with tab1:
         st.subheader("Account Login")
-        l_user = st.text_input("Username", key="l_user")
-        l_pass = st.text_input("Password", type="password", key="l_pass")
+        l_user = st.text_input("Username", key="l_user", placeholder="Enter your registered username")
+        l_pass = st.text_input("Password", type="password", key="l_pass", placeholder="Enter your password")
         if st.button("Log In", type="primary"):
             user_data = login_user(l_user, l_pass)
             if user_data:
                 st.session_state.logged_in = True
                 st.session_state.username = l_user
                 st.session_state.phone = user_data[0]
-                st.success("Login successful!")
+                st.success("Authentication successful! Redirecting...")
                 st.rerun()
             else:
-                st.error("Invalid credentials!")
+                st.error("Invalid credentials. Please verify your username and password.")
 
     with tab2:
-        st.subheader("New Registration")
-        r_user = st.text_input("Username", key="r_user")
-        r_pass = st.text_input("Password", type="password", key="r_pass")
-        st.write("**Mobile Number (India)**")
+        st.subheader("Create a New Account")
+        r_user = st.text_input("Username", key="r_user", placeholder="Choose a unique username")
+        r_pass = st.text_input("Password", type="password", key="r_pass", placeholder="Create a secure password")
+        st.write("**Mobile Contact (+91 - India)**")
         col_c, col_num = st.columns([1, 4])
         with col_c:
             st.text_input("Country Code", value="+91", disabled=True, key="reg_code")
         with col_num:
-            raw_phone = st.text_input("10-Digit Mobile Number", placeholder="9876543210", max_chars=10, key="reg_phone")
+            raw_phone = st.text_input("10-Digit Mobile Number", placeholder="e.g. 9876543210", max_chars=10, key="reg_phone")
         
-        if st.button("Register"):
+        if st.button("Register Account"):
             if r_user and r_pass and raw_phone:
                 if len(raw_phone.strip()) == 10 and raw_phone.strip().isdigit():
                     full_phone = f"+91{raw_phone.strip()}"
                     if register_user(r_user, r_pass, full_phone):
-                        st.success("Account successfully created! Ab login karein.")
+                        st.success("Account registered successfully! Please switch to the Sign In tab.")
                     else:
-                        st.error("Username pehle se exist karta hai.")
+                        st.error("Username already taken. Please select an alternate username.")
                 else:
-                    st.error("Kripya sahi 10-digit Indian mobile number daalein.")
+                    st.error("Please provide a valid 10-digit Indian mobile contact number.")
             else:
-                st.warning("Sabhi fields bharna zaroori hai.")
+                st.warning("All registration fields are required.")
     st.stop()
 
 # ----------------- MAIN DASHBOARD -----------------
 st.sidebar.title(f"Welcome, {st.session_state.username} 👋")
-if st.sidebar.button("Logout"):
+st.sidebar.caption(f"Verified Contact: `{st.session_state.phone}`")
+
+if st.sidebar.button("Log Out"):
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.phone = ""
@@ -113,19 +117,20 @@ if st.sidebar.button("Logout"):
     st.rerun()
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ API Configuration")
 gemini_key = st.sidebar.text_input("Gemini API Key", type="password", help="Enter Google AI Studio Key")
 
-st.sidebar.subheader("📲 WhatsApp Alert Settings (Free)")
-whatsapp_api_key = st.sidebar.text_input("CallMeBot WhatsApp API Key", type="password", help="Enter key received from CallMeBot")
+st.sidebar.subheader("📲 WhatsApp Notification Gateway")
+whatsapp_api_key = st.sidebar.text_input("CallMeBot WhatsApp API Key", type="password", help="Enter free API key provided by CallMeBot on WhatsApp")
 
-st.sidebar.info("Twilio SMS Dispatcher (Optional)")
+st.sidebar.subheader("📡 Twilio SMS Gateway (Optional)")
 tw_sid = st.sidebar.text_input("Twilio Account SID", type="password")
 tw_token = st.sidebar.text_input("Twilio Auth Token", type="password")
 tw_phone = st.sidebar.text_input("Twilio Phone Number (e.g. +1...)")
 
-menu = st.sidebar.radio("Navigation", ["1. Comprehensive AI Resume Builder", "2. Job Matcher & Alerts"])
+menu = st.sidebar.radio("Navigation", ["1. Comprehensive AI Resume Builder", "2. Smart Job Matcher & Alerts"])
 
-# Helper: Professional PDF Builder using Platypus
+# Helper: ReportLab Platypus PDF Builder
 def generate_complete_pdf(details, summary, ai_exp, ai_proj):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
@@ -138,7 +143,7 @@ def generate_complete_pdf(details, summary, ai_exp, ai_proj):
 
     elements = []
 
-    # Header / Contact Info
+    # Header / Contact Details
     elements.append(Paragraph(details['full_name'], name_style))
     contact_text = f"Email: {details['email']} | Phone: {details['phone']} | Location: {details['location']} | LinkedIn: {details['linkedin']}"
     elements.append(Paragraph(contact_text, contact_style))
@@ -152,7 +157,7 @@ def generate_complete_pdf(details, summary, ai_exp, ai_proj):
 
     # Education
     elements.append(Paragraph("EDUCATION", h2_style))
-    elements.append(Paragraph(f"<b>{details['degree']}</b> - {details['college']} ({details['grad_year']}) | Score: {details['score']}", body_style))
+    elements.append(Paragraph(f"<b>{details['degree']}</b> - {details['college']} ({details['grad_year']}) | Academic Score: {details['score']}", body_style))
     elements.append(Spacer(1, 4))
 
     # Technical Skills
@@ -167,14 +172,14 @@ def generate_complete_pdf(details, summary, ai_exp, ai_proj):
             elements.append(Paragraph(line.strip(), body_style))
     elements.append(Spacer(1, 4))
 
-    # Projects
-    elements.append(Paragraph("KEY ACADEMIC & TECHNICAL PROJECTS", h2_style))
+    # Technical Projects
+    elements.append(Paragraph("KEY TECHNICAL PROJECTS", h2_style))
     for line in ai_proj.split("\n"):
         if line.strip():
             elements.append(Paragraph(line.strip(), body_style))
     elements.append(Spacer(1, 4))
 
-    # Certifications
+    # Certifications & Achievements
     if details['certifications'].strip():
         elements.append(Paragraph("CERTIFICATIONS & ACHIEVEMENTS", h2_style))
         for cert in details['certifications'].split("\n"):
@@ -185,7 +190,7 @@ def generate_complete_pdf(details, summary, ai_exp, ai_proj):
     buffer.seek(0)
     return buffer
 
-# Helper: Robust Gemini API Caller
+# Helper: Robust Multi-Model Gemini Invoker
 def call_gemini(api_key, prompt):
     genai.configure(api_key=api_key)
     selected_model = None
@@ -206,38 +211,38 @@ def call_gemini(api_key, prompt):
 
 # --- TAB 1: RESUME BUILDER ---
 if menu == "1. Comprehensive AI Resume Builder":
-    st.title("📄 Complete AI Resume Builder")
-    st.caption("Apni details enter karein taaki personalized ATS resume ban sake.")
+    st.title("📄 Comprehensive AI Resume Builder")
+    st.caption("Provide your professional details to generate an ATS-compliant, recruiter-ready resume.")
 
     with st.expander("👤 1. Personal & Contact Details", expanded=True):
         p_col1, p_col2 = st.columns(2)
         with p_col1:
             full_name = st.text_input("Full Name", value=st.session_state.username)
-            email = st.text_input("Email Address", placeholder="e.g. yourname@gmail.com")
-            target_role = st.text_input("Target Job Profile", placeholder="e.g. Data Analyst")
+            email = st.text_input("Email Address", placeholder="e.g. candidate@gmail.com")
+            target_role = st.text_input("Target Job Profile", placeholder="e.g. Data Analyst / Software Engineer")
         with p_col2:
-            phone_num = st.text_input("Contact Number (+91 format)", value=st.session_state.phone, disabled=True)
+            phone_num = st.text_input("Contact Number (+91)", value=st.session_state.phone, disabled=True)
             location = st.text_input("Current City / State", placeholder="e.g. Pune, Maharashtra")
-            linkedin = st.text_input("LinkedIn / GitHub URL", placeholder="e.g. linkedin.com/in/username")
+            linkedin = st.text_input("LinkedIn / Portfolio URL", placeholder="e.g. linkedin.com/in/username")
 
-    with st.expander("🎓 2. Education Details", expanded=True):
+    with st.expander("🎓 2. Educational Qualifications", expanded=True):
         e_col1, e_col2 = st.columns(2)
         with e_col1:
             degree = st.text_input("Degree / Course", placeholder="e.g. Bachelor of Computer Applications (BCA)")
-            college = st.text_input("College / Institute Name", placeholder="e.g. SPPU Pune")
+            college = st.text_input("College / Institute Name", placeholder="e.g. Savitribai Phule Pune University")
         with e_col2:
-            grad_year = st.text_input("Passing Year / Expected", placeholder="2026")
+            grad_year = st.text_input("Graduation Year / Expected", placeholder="e.g. 2026")
             score = st.text_input("CGPA / Percentage", placeholder="e.g. 8.4 CGPA")
 
-    with st.expander("💻 3. Skills & Technologies", expanded=True):
-        skills_input = st.text_area("Skills (Languages, Databases, Frameworks, Tools)", placeholder="e.g. Python, SQL, Tableau, Power BI, Excel")
+    with st.expander("💻 3. Technical Competencies", expanded=True):
+        skills_input = st.text_area("Skills (Languages, Databases, Frameworks, Tools)", placeholder="e.g. Python, SQL (MySQL), Tableau, Power BI, Excel, Pandas, Git, C++")
 
     with st.expander("💼 4. Experience & Projects", expanded=True):
-        experience_raw = st.text_area("Internship / Work Experience (agar fresher ho toh 'Fresher' likhein)", placeholder="Apni internship ya practical work details likhein...")
-        projects_raw = st.text_area("Key Projects (Title and raw description)", placeholder="Project 1: ...\nProject 2: ...")
+        experience_raw = st.text_area("Internships / Work Experience (Enter 'Fresher' if none)", placeholder="Describe your responsibilities, internships, or practical industry exposure...")
+        projects_raw = st.text_area("Key Technical Projects", placeholder="Project 1: Real-time Analytics Dashboard using Tableau.\nProject 2: AI-Powered ATS Resume Builder using Streamlit.")
 
     with st.expander("🏆 5. Certifications & Achievements", expanded=False):
-        certifications = st.text_area("Certifications (Ek line me ek)", placeholder="e.g. Data Analytics Certificate - Coursera")
+        certifications = st.text_area("Certifications (One entry per line)", placeholder="e.g. Data Analytics Professional Certificate - Coursera\nIgniteX 1.0 Employability Skills Program")
 
     resume_payload = {
         "full_name": full_name,
@@ -253,8 +258,8 @@ if menu == "1. Comprehensive AI Resume Builder":
         "certifications": certifications
     }
 
-    if st.button("✨ Enhance & Generate Complete Resume with AI", type="primary"):
-        with st.spinner("AI resume optimize kar raha hai..."):
+    if st.button("✨ Enhance & Generate ATS Resume with AI", type="primary"):
+        with st.spinner("Optimizing resume content for ATS compliance..."):
             summary_res = ""
             exp_res = ""
             proj_res = ""
@@ -282,18 +287,18 @@ Return output STRICTLY in JSON format with exact keys:
                 except Exception:
                     pass
 
-            # Fail-safe Fallback taaki bina key ke bhi demo chale
+            # Fail-safe Fallback
             if not summary_res:
-                summary_res = f"Detail-oriented {target_role if target_role else 'Professional'} with strong technical foundations in {skills_input if skills_input else 'Core Computing'} and problem-solving abilities. Capable of translating technical requirements into efficient deliverables."
-                exp_res = f"• Executed practical project tasks utilizing {skills_input if skills_input else 'technical tools'}.\n• Maintained code and project documentation ensuring standard operational quality."
-                proj_res = f"• Developed end-to-end technical projects demonstrating problem-solving ability.\n• Successfully delivered modules with documented outcomes."
+                summary_res = f"Detail-oriented {target_role if target_role else 'Professional'} equipped with solid technical foundations in {skills_input if skills_input else 'Core Computing Technologies'} and analytical problem-solving abilities. Capable of translating technical requirements into actionable, high-quality deliverables."
+                exp_res = f"• Developed and executed technical assignments utilizing {skills_input if skills_input else 'modern toolkits'}.\n• Maintained structured workflows and adhered to industry-standard documentation practices."
+                proj_res = f"• Engineered end-to-end software applications showcasing practical problem-solving capabilities.\n• Integrated external API services and optimized document rendering pipelines."
 
             st.session_state.ai_summary = summary_res
             st.session_state.ai_exp = exp_res
             st.session_state.ai_proj = proj_res
             st.session_state.resume_ready = True
             st.session_state.current_payload = resume_payload
-            st.success("Resume content successfully polished and generated!")
+            st.success("Resume successfully generated and formatted!")
 
     if st.session_state.get("resume_ready", False):
         st.markdown("---")
@@ -309,7 +314,7 @@ Return output STRICTLY in JSON format with exact keys:
 
         st.markdown(f"**Professional Summary:**\n{st.session_state.ai_summary}")
         st.markdown(f"**Experience:**\n{st.session_state.ai_exp}")
-        st.markdown(f"**Projects:**\n{st.session_state.ai_proj}")
+        st.markdown(f"**Key Projects:**\n{st.session_state.ai_proj}")
 
         pdf_stream = generate_complete_pdf(
             st.session_state.current_payload, 
@@ -325,20 +330,20 @@ Return output STRICTLY in JSON format with exact keys:
         )
 
 # --- TAB 2: JOB MATCHER & ALERTS ---
-elif menu == "2. Job Matcher & Alerts":
-    st.title("🎯 Job Matcher & Mobile Notification Alert")
+elif menu == "2. Smart Job Matcher & Alerts":
+    st.title("🎯 Smart Job Matcher & Real-Time Alerts")
+    st.info(f"Target Alert Recipient: **{st.session_state.username}** (`{st.session_state.phone}`)")
 
-    st.info(f"Connected Mobile Number for Alerts: **{st.session_state.phone}** (India)")
+    job_title_input = st.text_input("Job Role / Designation", placeholder="e.g. Associate Data Analyst / Business Intelligence Engineer")
+    job_desc = st.text_area("Job Description (JD):", height=150, 
+                            placeholder="Paste the target job description here...")
+    user_skills_to_match = st.text_input("Extracted Resume Skills for ATS Matching", placeholder="e.g. Python, SQL, Tableau, Power BI, Excel, MySQL, Git")
 
-    job_desc = st.text_area("Paste Target Job Description (JD):", height=150, 
-                            placeholder="Yahan job posting ka description paste karein...")
-    user_skills_to_match = st.text_input("Candidate Skills for ATS Match", placeholder="e.g. Python, SQL, Tableau, Power BI, Excel")
-
-    if st.button("🚀 Analyze Match & Dispatch Alert", type="primary"):
-        with st.spinner("Analyzing candidate profile against JD..."):
+    if st.button("🚀 Analyze Compatibility & Dispatch Mobile Alert", type="primary"):
+        with st.spinner("Evaluating profile compatibility against job criteria..."):
             score = 85
-            matched = ["Relevant Skills Identified"]
-            missing = ["Advanced Domain Tooling"]
+            matched = ["Relevant Foundational Skills"]
+            missing = ["Specialized Domain Expertise"]
 
             if gemini_key and job_desc and user_skills_to_match:
                 try:
@@ -361,18 +366,18 @@ Return strictly JSON:
                 except Exception:
                     pass
 
-            st.metric(label="ATS Match Score", value=f"{score}%")
+            st.metric(label="ATS Profile Match Score", value=f"{score}%")
             st.progress(score / 100)
 
             col_m1, col_m2 = st.columns(2)
             with col_m1:
-                st.success(f"Matched Skills: {', '.join(matched)}")
+                st.success(f"Matched Competencies: {', '.join(matched)}")
             with col_m2:
-                st.warning(f"Skill Gaps: {', '.join(missing)}")
+                st.warning(f"Skill Deficiencies: {', '.join(missing)}")
 
-            sms_alert_text = f"Job Match Alert for {st.session_state.username}: Profile scored {score}% for the opening! Matches: {', '.join(matched[:3])}."
+            sms_alert_text = f"Job Match Alert for {st.session_state.username}: Profile scored {score}% for '{job_title_input}'! Matching skills: {', '.join(matched[:3])}."
 
-            # WhatsApp Notification Dispatch (CallMeBot)
+            # WhatsApp Webhook Dispatch (CallMeBot)
             clean_phone = st.session_state.phone.replace("+", "").strip()
             encoded_msg = urllib.parse.quote(sms_alert_text)
             
@@ -386,6 +391,7 @@ Return strictly JSON:
                 except Exception as ex:
                     st.warning(f"Gateway connection error: {ex}")
 
+            # Optional Twilio Dispatch
             sent_twilio = False
             if tw_sid and tw_token and tw_phone and st.session_state.phone:
                 try:
@@ -396,11 +402,13 @@ Return strictly JSON:
                     pass
 
             st.markdown("---")
-            st.subheader("📲 Real-Time Mobile Alert Pipeline")
+            st.subheader("📲 Real-Time Mobile Dispatch Pipeline")
             if sent_whatsapp:
-                st.success(f"✅ Real WhatsApp Notification successfully delivered to +{clean_phone}!")
+                st.success(f"✅ Real-time WhatsApp alert successfully dispatched to +{clean_phone}!")
             elif sent_twilio:
-                st.success(f"✅ Live SMS sent to {st.session_state.phone} via Twilio!")
+                st.success(f"✅ Live SMS notification dispatched to {st.session_state.phone} via Twilio Gateway!")
             else:
-                st.info("⚡ Real-Time Notification Log (Telecom Gateway Preview):")
-                st.code(f"Destination Number: {st.session_state.phone}\nCarrier Format: E.164 (India +91)\nPayload: {sms_alert_text}", language="markdown")
+                st.info("⚡ Live Telecom Dispatch Pipeline (E.164 Format Preview):")
+                st.code(f"Destination: {st.session_state.phone}\nTelecom Standard: E.164 (India)\nPayload: {sms_alert_text}", language="markdown")
+                if not whatsapp_api_key:
+                    st.caption("Provide a CallMeBot API key in the sidebar to trigger live WhatsApp messages.")
